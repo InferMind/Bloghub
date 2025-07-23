@@ -14,8 +14,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search, Filter, Clock, Heart, MessageCircle, Eye, SortDesc } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase/client"
-import { Navbar } from "@/components/layout/navbar"
-import { Footer } from "@/components/layout/footer"
 import { AnimatedBackground } from "@/components/ui/animated-background"
 import type { Post, Category } from "@/lib/types/database"
 
@@ -75,16 +73,25 @@ export default function BlogsPage() {
 
       // Apply category filter
       if (selectedCategory !== "all") {
-        query = query.eq("category.slug", selectedCategory)
+        // First get the category ID
+        const { data: categoryData } = await supabase
+          .from("categories")
+          .select("id")
+          .eq("slug", selectedCategory)
+          .single();
+          
+        if (categoryData) {
+          query = query.eq("category_id", categoryData.id);
+        }
       }
 
       // Apply sorting
       switch (sortBy) {
         case "newest":
-          query = query.order("published_at", { ascending: false })
+          query = query.order("created_at", { ascending: false })
           break
         case "oldest":
-          query = query.order("published_at", { ascending: true })
+          query = query.order("created_at", { ascending: true })
           break
         case "popular":
           query = query.order("views_count", { ascending: false })
@@ -93,7 +100,7 @@ export default function BlogsPage() {
           query = query.order("likes_count", { ascending: false })
           break
         default:
-          query = query.order("published_at", { ascending: false })
+          query = query.order("created_at", { ascending: false })
       }
 
       const { data, error } = await query
@@ -135,7 +142,6 @@ export default function BlogsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-blue-900/20 dark:to-indigo-900/20 relative">
       <AnimatedBackground />
-      <Navbar />
 
       <main className="pt-16 relative z-10">
         <div className="container mx-auto px-4 py-8">
@@ -319,8 +325,6 @@ export default function BlogsPage() {
           </div>
         </div>
       </main>
-
-      <Footer />
     </div>
   )
 }

@@ -17,8 +17,6 @@ import { Separator } from "@/components/ui/separator"
 import { User, Mail, Globe, Twitter, Github, Linkedin, Camera, Save, Settings } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase/client"
-import { Navbar } from "@/components/layout/navbar"
-import { Footer } from "@/components/layout/footer"
 import { AnimatedBackground } from "@/components/ui/animated-background"
 import type { User as UserType } from "@/lib/types/database"
 
@@ -48,16 +46,48 @@ export default function ProfilePage() {
     try {
       const {
         data: { user: authUser },
+        error: authError,
       } = await supabase.auth.getUser()
 
-      if (!authUser) {
+      if (authError) {
+        console.error("Auth error:", authError)
         router.push("/auth/login")
         return
       }
 
-      const { data: profile, error } = await supabase.from("users").select("*").eq("id", authUser.id).single()
+      if (!authUser) {
+        console.log("No authenticated user found, redirecting to login")
+        router.push("/auth/login")
+        return
+      }
 
-      if (error) throw error
+      const { data: profile, error: profileError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", authUser.id)
+        .single()
+
+      if (profileError) {
+        console.error("Error fetching profile:", profileError)
+        toast({
+          title: "Error",
+          description: "Failed to load profile data",
+          variant: "destructive",
+        })
+        router.push("/")
+        return
+      }
+
+      if (!profile) {
+        console.error("No profile found for user ID:", authUser.id)
+        toast({
+          title: "Profile not found",
+          description: "Your profile information could not be found",
+          variant: "destructive",
+        })
+        router.push("/")
+        return
+      }
 
       setUser(profile)
       setFormData({
@@ -77,6 +107,7 @@ export default function ProfilePage() {
         description: "Failed to load profile",
         variant: "destructive",
       })
+      router.push("/")
     } finally {
       setIsLoading(false)
     }
@@ -178,7 +209,6 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-blue-900/20 dark:to-indigo-900/20 relative">
       <AnimatedBackground />
-      <Navbar />
 
       <main className="pt-16 relative z-10">
         <div className="container mx-auto px-4 py-8">
@@ -453,7 +483,6 @@ export default function ProfilePage() {
         </div>
       </main>
 
-      <Footer />
     </div>
   )
 }

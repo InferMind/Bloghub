@@ -21,7 +21,7 @@ export async function getPosts(
       category:categories(*)
     `)
     .eq("is_published", true)
-    .order("published_at", { ascending: false })
+    .order("created_at", { ascending: false })
 
   if (options.category) {
     query = query.eq("category.slug", options.category)
@@ -83,6 +83,7 @@ export async function createPost(post: Partial<Post>) {
       author_id: user.id,
       slug: generateSlug(post.title || ""),
       reading_time: calculateReadingTime(post.content || ""),
+      published_at: post.is_published ? new Date().toISOString() : null,
     })
     .select()
     .single()
@@ -92,12 +93,27 @@ export async function createPost(post: Partial<Post>) {
 }
 
 export async function updatePost(id: string, updates: Partial<Post>) {
+  // Check if the post is being published for the first time
+  let publishedAt = undefined;
+  if (updates.is_published) {
+    const { data: existingPost } = await supabase
+      .from("posts")
+      .select("published_at, is_published")
+      .eq("id", id)
+      .single();
+      
+    if (existingPost && !existingPost.published_at && !existingPost.is_published) {
+      publishedAt = new Date().toISOString();
+    }
+  }
+  
   const { data, error } = await supabase
     .from("posts")
     .update({
       ...updates,
       updated_at: new Date().toISOString(),
       reading_time: updates.content ? calculateReadingTime(updates.content) : undefined,
+      published_at: publishedAt,
     })
     .eq("id", id)
     .select()

@@ -25,24 +25,44 @@ export async function middleware(request: NextRequest) {
     },
   )
 
-  // Refresh session if expired
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  try {
+    // Refresh session if expired
+    const { data: sessionData } = await supabase.auth.getSession()
+    const { data: userData, error: userError } = await supabase.auth.getUser()
+    
+    const user = userData?.user
+    
+    // Protect profile route
+    if (request.nextUrl.pathname.startsWith("/profile") && !user) {
+      return NextResponse.redirect(new URL("/auth/login", request.url))
+    }
+    
+    // Protect dashboard routes
+    if (request.nextUrl.pathname.startsWith("/dashboard") && !user) {
+      return NextResponse.redirect(new URL("/auth/login", request.url))
+    }
+    
+    // Protect write route
+    if (request.nextUrl.pathname.startsWith("/write") && !user) {
+      return NextResponse.redirect(new URL("/auth/login", request.url))
+    }
 
-  // Protect dashboard routes
-  if (request.nextUrl.pathname.startsWith("/dashboard") && !user) {
-    return NextResponse.redirect(new URL("/auth/login", request.url))
-  }
-
-  // Redirect authenticated users away from auth pages
-  if (request.nextUrl.pathname.startsWith("/auth") && user) {
-    return NextResponse.redirect(new URL("/dashboard", request.url))
+    // Redirect authenticated users away from auth pages
+    if (request.nextUrl.pathname.startsWith("/auth") && user) {
+      return NextResponse.redirect(new URL("/dashboard", request.url))
+    }
+  } catch (error) {
+    console.error("Middleware auth error:", error)
   }
 
   return supabaseResponse
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: [
+    "/dashboard/:path*",
+    "/profile/:path*",
+    "/write/:path*",
+    "/auth/:path*"
+  ]
 }

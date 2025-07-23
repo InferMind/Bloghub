@@ -10,8 +10,6 @@ import { Button } from "@/components/ui/button"
 import { Bookmark, Clock, Heart, MessageCircle, Eye, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase/client"
-import { Navbar } from "@/components/layout/navbar"
-import { Footer } from "@/components/layout/footer"
 import { AnimatedBackground } from "@/components/ui/animated-background"
 import type { Post } from "@/lib/types/database"
 
@@ -99,7 +97,6 @@ export default function BookmarksPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-blue-900/20 dark:to-indigo-900/20 relative">
       <AnimatedBackground />
-      <Navbar />
 
       <main className="pt-16 relative z-10">
         <div className="container mx-auto px-4 py-8">
@@ -218,7 +215,6 @@ export default function BookmarksPage() {
         </div>
       </main>
 
-      <Footer />
     </div>
   )
 }

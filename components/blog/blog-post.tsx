@@ -63,14 +63,14 @@ export function BlogPost({ post }: BlogPostProps) {
           .select("id")
           .eq("post_id", post.id)
           .eq("user_id", authUser.id)
-          .single()
+          .maybeSingle()
 
         const { data: bookmark } = await supabase
           .from("bookmarks")
           .select("id")
           .eq("post_id", post.id)
           .eq("user_id", authUser.id)
-          .single()
+          .maybeSingle()
 
         setIsLiked(!!like)
         setIsBookmarked(!!bookmark)
@@ -243,7 +243,7 @@ export function BlogPost({ post }: BlogPostProps) {
                     {post.author?.full_name}
                   </Link>
                   <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                    <span>{new Date(post.published_at || post.created_at).toLocaleDateString()}</span>
+                    <span>{new Date(post.created_at).toLocaleDateString()}</span>
                     <div className="flex items-center gap-1">
                       <Clock className="w-4 h-4" />
                       {post.reading_time} min read

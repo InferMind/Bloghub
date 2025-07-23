@@ -1,17 +1,15 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RichTextEditor } from "@/components/editor/rich-text-editor"
-import { generateSlug } from "@/lib/utils"
-import { Upload } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
+import { Loader2, Upload } from "lucide-react"
 import Image from "next/image"
 
 // Calculate reading time based on content length
@@ -21,10 +19,11 @@ function calculateReadTime(content: string): number {
   const readTime = Math.ceil(words / 200);
   return Math.max(1, readTime); // Minimum 1 minute read time
 }
-import { useToast } from "@/components/ui/use-toast"
-import { Loader2 } from "lucide-react"
 
-export default function WritePage() {
+export default function EditPostPage() {
+  const params = useParams()
+  const postId = params.id as string
+  
   const [title, setTitle] = useState("")
   const [content, setContent] = useState("")
   const [excerpt, setExcerpt] = useState("")
@@ -35,6 +34,8 @@ export default function WritePage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [user, setUser] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [post, setPost] = useState<any>(null)
+  const [isPublished, setIsPublished] = useState(false)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
@@ -53,7 +54,6 @@ export default function WritePage() {
         return
       }
       setUser(user)
-      setIsLoading(false)
     }
 
     async function getCategories() {
@@ -67,60 +67,69 @@ export default function WritePage() {
       setCategories(data || [])
     }
 
-    getUser()
-    getCategories()
-
-    // Check for draft in localStorage
-    const savedDraft = localStorage.getItem("blog_draft")
-    if (savedDraft) {
+    async function getPost() {
       try {
-        const draft = JSON.parse(savedDraft)
-        setTitle(draft.title || "")
-        setContent(draft.content || "")
-        setExcerpt(draft.excerpt || "")
-        setSlug(draft.slug || "")
-        setCategoryId(draft.categoryId || "")
-        setCoverImage(draft.coverImage || "")
-        if (draft.coverImage) {
-          setImagePreview(draft.coverImage)
+        const { data, error } = await supabase
+          .from("posts")
+          .select("*, author:users(*)")
+          .eq("id", postId)
+          .single()
+
+        if (error) throw error
+        
+        if (!data) {
+          toast({
+            title: "Post not found",
+            description: "The post you're trying to edit doesn't exist.",
+            variant: "destructive",
+          })
+          router.push("/dashboard")
+          return
+        }
+
+        // Check if user is the author
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        
+        if (data.author_id !== user?.id) {
+          toast({
+            title: "Unauthorized",
+            description: "You don't have permission to edit this post.",
+            variant: "destructive",
+          })
+          router.push("/dashboard")
+          return
+        }
+
+        setPost(data)
+        setTitle(data.title)
+        setContent(data.content)
+        setExcerpt(data.excerpt || "")
+        setSlug(data.slug)
+        setCategoryId(data.category_id || "")
+        setCoverImage(data.cover_image_url || "")
+        setIsPublished(data.is_published)
+        
+        if (data.cover_image_url) {
+          setImagePreview(data.cover_image_url)
         }
       } catch (error) {
-        console.error("Error parsing saved draft:", error)
+        console.error("Error fetching post:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load the post.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
       }
     }
-  }, [router, supabase])
 
-  // Auto-save draft every 30 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (title || content) {
-        saveDraft()
-      }
-    }, 30000)
-
-    return () => clearInterval(interval)
-  }, [title, content, excerpt, slug, categoryId, coverImage])
-
-  // Update slug when title changes
-  useEffect(() => {
-    if (title) {
-      setSlug(generateSlug(title))
-    }
-  }, [title])
-
-  const saveDraft = () => {
-    const draft = {
-      title,
-      content,
-      excerpt,
-      slug,
-      categoryId,
-      coverImage,
-      lastSaved: new Date().toISOString(),
-    }
-
-    localStorage.setItem("blog_draft", JSON.stringify(draft))
-  }
+    getUser()
+    getCategories()
+    getPost()
+  }, [postId, router, supabase, toast])
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -182,7 +191,7 @@ export default function WritePage() {
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, saveAsDraft = false) => {
     e.preventDefault()
 
     if (!title || !content || !categoryId) {
@@ -197,17 +206,6 @@ export default function WritePage() {
     setIsSubmitting(true)
 
     try {
-      // Get user profile
-      const { data: profile, error: profileError } = await supabase
-        .from("users")
-        .select("id, username")
-        .eq("id", user.id)
-        .single()
-
-      if (profileError || !profile) {
-        throw new Error("Could not find user profile")
-      }
-      
       // Upload image if selected
       let imageUrl = coverImage
       if (imageFile) {
@@ -217,42 +215,41 @@ export default function WritePage() {
         }
       }
 
-      // Create post
-      const { data, error } = await supabase
+      // Update post
+      const { error } = await supabase
         .from("posts")
-        .insert({
+        .update({
           title,
           content,
           excerpt: excerpt || title.substring(0, 150),
           slug,
-          author_id: profile.id,
           category_id: categoryId,
           cover_image_url: imageUrl || null,
-          is_published: true,
-          views_count: 0,
-          likes_count: 0,
-          bookmarks_count: 0,
-          comments_count: 0,
+          is_published: !saveAsDraft,
+          updated_at: new Date().toISOString(),
           reading_time: calculateReadTime(content)
         })
-        .select()
+        .eq("id", postId)
 
       if (error) throw error
 
-      // Clear draft from localStorage
-      localStorage.removeItem("blog_draft")
-
       toast({
-        title: "Post published!",
-        description: "Your blog post has been published successfully.",
+        title: saveAsDraft ? "Draft saved!" : "Post updated!",
+        description: saveAsDraft 
+          ? "Your blog post has been saved as a draft." 
+          : "Your blog post has been updated successfully.",
       })
 
-      // Redirect to the published post
-      router.push(`/blog/${profile.username}/${slug}`)
+      // Redirect to the post or dashboard
+      if (saveAsDraft) {
+        router.push("/dashboard")
+      } else {
+        router.push(`/blog/${post.author.username}/${slug}`)
+      }
     } catch (error: any) {
-      console.error("Error publishing post:", error)
+      console.error("Error updating post:", error)
       toast({
-        title: "Error publishing post",
+        title: "Error updating post",
         description: error.message || "Something went wrong. Please try again.",
         variant: "destructive",
       })
@@ -271,9 +268,9 @@ export default function WritePage() {
 
   return (
     <div className="container max-w-5xl py-8">
-      <h1 className="text-3xl font-bold mb-6">Write a New Blog Post</h1>
+      <h1 className="text-3xl font-bold mb-6">Edit Blog Post</h1>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
         <div className="space-y-2">
           <Label htmlFor="title">Title *</Label>
           <Input
@@ -289,7 +286,7 @@ export default function WritePage() {
           <Label htmlFor="slug">Slug</Label>
           <Input id="slug" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="url-friendly-slug" />
           <p className="text-sm text-muted-foreground">
-            This will be used in the URL of your post. Leave empty to generate from title.
+            This will be used in the URL of your post.
           </p>
         </div>
 
@@ -376,15 +373,30 @@ export default function WritePage() {
         </div>
 
         <div className="flex justify-between">
-          <Button type="button" variant="outline" onClick={saveDraft}>
-            Save Draft
-          </Button>
-
-          <Button type="submit" disabled={isSubmitting || isUploading}>
-            {isSubmitting ? (
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={(e) => handleSubmit(e, true)}
+            disabled={isSubmitting || isUploading}
+          >
+            {isSubmitting && !isPublished ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Publishing...
+                Saving...
+              </>
+            ) : (
+              "Save as Draft"
+            )}
+          </Button>
+
+          <Button 
+            type="submit" 
+            disabled={isSubmitting || isUploading}
+          >
+            {isSubmitting && isPublished ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Updating...
               </>
             ) : isUploading ? (
               <>
@@ -392,7 +404,7 @@ export default function WritePage() {
                 Uploading Image...
               </>
             ) : (
-              "Publish Post"
+              "Update Post"
             )}
           </Button>
         </div>

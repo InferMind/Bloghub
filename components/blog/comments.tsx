@@ -10,7 +10,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase/client"
 import type { Comment } from "@/lib/types/database"
-import { setReplyingTo } from "@/lib/setReplyingTo" // Declare or import the variable here
 
 interface CommentsProps {
   postId: string
@@ -48,8 +47,7 @@ export function Comments({ postId }: CommentsProps) {
         .from("comments")
         .select(`
           *,
-          user:users(*),
-          likes:likes(user_id)
+          user:users(*)
         `)
         .eq("post_id", postId)
         .is("parent_id", null)
@@ -64,16 +62,27 @@ export function Comments({ postId }: CommentsProps) {
             .from("comments")
             .select(`
               *,
-              user:users(*),
-              likes:likes(user_id)
+              user:users(*)
             `)
             .eq("parent_id", comment.id)
             .order("created_at", { ascending: true })
 
+          // Check if the comment is liked by the current user
+          let isLiked = false;
+          if (user) {
+            const { data: likeData } = await supabase
+              .from("likes")
+              .select("id")
+              .eq("comment_id", comment.id)
+              .eq("user_id", user.id)
+              .maybeSingle();
+            isLiked = !!likeData;
+          }
+          
           return {
             ...comment,
             replies: replies || [],
-            is_liked: user ? comment.likes?.some((like: any) => like.user_id === user.id) : false,
+            is_liked: isLiked,
           }
         }),
       )
@@ -259,7 +268,7 @@ export function Comments({ postId }: CommentsProps) {
             comment={comment}
             user={user}
             onLike={handleLikeComment}
-            onReply={(commentId) => setReplyingTo(commentId)}
+            onReply={(commentId) => setReplyingTo(commentId ? commentId : null)}
             replyingTo={replyingTo}
             replyContent={replyContent}
             setReplyContent={setReplyContent}
@@ -378,7 +387,7 @@ function CommentItem({
                   >
                     {isLoading ? "Posting..." : "Reply"}
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setReplyingTo(null)}>
+                  <Button size="sm" variant="ghost" onClick={() => onReply("")}>  {/* Pass empty string to clear replyingTo */}
                     Cancel
                   </Button>
                 </div>

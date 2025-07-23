@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useTheme } from "next-themes"
 
 interface Blob {
   id: number
@@ -15,20 +16,45 @@ interface Blob {
 
 export function AnimatedBackground() {
   const [blobs, setBlobs] = useState<Blob[]>([])
+  const { theme } = useTheme()
 
   useEffect(() => {
-    // Initialize blobs
-    const initialBlobs: Blob[] = Array.from({ length: 5 }, (_, i) => ({
+    // Initialize blobs - mix of large and small blobs
+    const largeBlobs: Blob[] = Array.from({ length: 5 }, (_, i) => ({
       id: i,
       x: Math.random() * window.innerWidth,
       y: Math.random() * window.innerHeight,
       size: Math.random() * 300 + 200,
-      color: ["bg-purple-300/20", "bg-blue-300/20", "bg-pink-300/20", "bg-indigo-300/20", "bg-cyan-300/20"][i % 5],
-      speedX: (Math.random() - 0.5) * 0.5,
-      speedY: (Math.random() - 0.5) * 0.5,
-      opacity: Math.random() * 0.3 + 0.1,
+      color: [
+        "bg-purple-300/10 dark:bg-purple-500/5", 
+        "bg-blue-300/10 dark:bg-blue-500/5", 
+        "bg-pink-300/10 dark:bg-pink-500/5", 
+        "bg-indigo-300/10 dark:bg-indigo-500/5", 
+        "bg-cyan-300/10 dark:bg-cyan-500/5"
+      ][i % 5],
+      speedX: (Math.random() - 0.5) * 0.2, // Slower movement
+      speedY: (Math.random() - 0.5) * 0.2,
+      opacity: Math.random() * 0.08 + 0.02, // Very subtle opacity
     }))
-
+    
+    const smallBlobs: Blob[] = Array.from({ length: 8 }, (_, i) => ({
+      id: i + 5,
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      size: Math.random() * 100 + 50, // Smaller size
+      color: [
+        "bg-purple-300/10 dark:bg-purple-500/5", 
+        "bg-blue-300/10 dark:bg-blue-500/5", 
+        "bg-pink-300/10 dark:bg-pink-500/5", 
+        "bg-indigo-300/10 dark:bg-indigo-500/5", 
+        "bg-cyan-300/10 dark:bg-cyan-500/5"
+      ][i % 5],
+      speedX: (Math.random() - 0.5) * 0.3, // Slightly faster for small blobs
+      speedY: (Math.random() - 0.5) * 0.3,
+      opacity: Math.random() * 0.05 + 0.01, // Extremely subtle
+    }))
+    
+    const initialBlobs = [...largeBlobs, ...smallBlobs]
     setBlobs(initialBlobs)
 
     // Animation loop
@@ -41,13 +67,13 @@ export function AnimatedBackground() {
           let newSpeedY = blob.speedY
 
           // Bounce off edges
-          if (newX <= 0 || newX >= window.innerWidth - blob.size) {
+          if (newX <= -blob.size/2 || newX >= window.innerWidth - blob.size/2) {
             newSpeedX = -blob.speedX
-            newX = Math.max(0, Math.min(window.innerWidth - blob.size, newX))
+            newX = Math.max(-blob.size/2, Math.min(window.innerWidth - blob.size/2, newX))
           }
-          if (newY <= 0 || newY >= window.innerHeight - blob.size) {
+          if (newY <= -blob.size/2 || newY >= window.innerHeight - blob.size/2) {
             newSpeedY = -blob.speedY
-            newY = Math.max(0, Math.min(window.innerHeight - blob.size, newY))
+            newY = Math.max(-blob.size/2, Math.min(window.innerHeight - blob.size/2, newY))
           }
 
           return {
@@ -62,7 +88,24 @@ export function AnimatedBackground() {
     }
 
     const interval = setInterval(animate, 50)
-    return () => clearInterval(interval)
+    
+    // Handle window resize
+    const handleResize = () => {
+      setBlobs(prevBlobs => 
+        prevBlobs.map(blob => ({
+          ...blob,
+          x: Math.min(blob.x, window.innerWidth - blob.size/2),
+          y: Math.min(blob.y, window.innerHeight - blob.size/2),
+        }))
+      )
+    }
+    
+    window.addEventListener('resize', handleResize)
+    
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('resize', handleResize)
+    }
   }, [])
 
   return (
@@ -70,7 +113,7 @@ export function AnimatedBackground() {
       {blobs.map((blob) => (
         <div
           key={blob.id}
-          className={`absolute rounded-full mix-blend-multiply filter blur-xl ${blob.color} transition-all duration-1000 ease-linear`}
+          className={`absolute rounded-full mix-blend-multiply filter blur-xl ${blob.color}`}
           style={{
             left: blob.x,
             top: blob.y,
@@ -78,6 +121,7 @@ export function AnimatedBackground() {
             height: blob.size,
             opacity: blob.opacity,
             transform: "translate3d(0, 0, 0)", // Hardware acceleration
+            transition: "opacity 0.5s ease-in-out",
           }}
         />
       ))}

@@ -3,8 +3,6 @@ import { createClient } from "@/lib/supabase/server"
 import { BlogPost } from "@/components/blog/blog-post"
 import { Comments } from "@/components/blog/comments"
 import { RelatedPosts } from "@/components/blog/related-posts"
-import { Navbar } from "@/components/layout/navbar"
-import { Footer } from "@/components/layout/footer"
 import type { Metadata } from "next"
 
 interface BlogPostPageProps {
@@ -44,7 +42,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       title: post.title,
       description: post.excerpt || post.content.substring(0, 160),
       type: "article",
-      publishedTime: post.published_at || undefined,
+      publishedTime: post.created_at || undefined,
       authors: [post.author?.full_name || ""],
       images: post.cover_image_url ? [post.cover_image_url] : [],
     },
@@ -85,7 +83,6 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-blue-900/20 dark:to-indigo-900/20">
-      <Navbar />
       <main className="pt-16">
         <BlogPost post={post} />
         <div className="container mx-auto px-4 py-16">
@@ -95,7 +92,6 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           </div>
         </div>
       </main>
-      <Footer />
     </div>
   )
 }

@@ -9,8 +9,6 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Search, Folder, TrendingUp } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
-import { Navbar } from "@/components/layout/navbar"
-import { Footer } from "@/components/layout/footer"
 import { AnimatedBackground } from "@/components/ui/animated-background"
 import type { Category } from "@/lib/types/database"
 
@@ -69,7 +67,6 @@ export default function CategoriesPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-blue-900/20 dark:to-indigo-900/20 relative">
       <AnimatedBackground />
-      <Navbar />
 
       <main className="pt-16 relative z-10">
         <div className="container mx-auto px-4 py-8">
@@ -177,8 +174,6 @@ export default function CategoriesPage() {
           </div>
         </div>
       </main>
-
-      <Footer />
     </div>
   )
 }

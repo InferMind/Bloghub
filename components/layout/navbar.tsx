@@ -61,17 +61,74 @@ export function Navbar() {
 
   const loadUser = async () => {
     try {
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser()
+      // First check if we have a session
+      const { data: sessionData } = await supabase.auth.getSession()
+      
+      // If no session, user is not logged in
+      if (!sessionData.session) {
+        setUser(null)
+        setIsLoading(false)
+        return
+      }
+      
+      // Now we can safely get the user
+      const { data: userData, error: authError } = await supabase.auth.getUser()
+      
+      if (authError || !userData.user) {
+        setUser(null)
+        setIsLoading(false)
+        return
+      }
+      
+      const authUser = userData.user
 
-      if (authUser) {
-        const { data: profile } = await supabase.from("users").select("*").eq("id", authUser.id).single()
+      // Get user profile
+      const { data: profile, error: profileError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", authUser.id)
+        .single()
 
+      if (profileError && profileError.code === 'PGRST116') {
+        // No profile found, create one
+        const email = authUser.email || ''
+        const name = authUser.user_metadata?.full_name || email.split('@')[0] || 'User'
+        const username = email.split('@')[0] || `user_${Date.now().toString().slice(-6)}`
+        
+        const newProfile = {
+          id: authUser.id,
+          full_name: name,
+          username: username,
+          avatar_url: authUser.user_metadata?.avatar_url || '',
+          is_writer: false,
+          followers_count: 0,
+          following_count: 0,
+          posts_count: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+        
+        // Use upsert to avoid duplicate key errors
+        const { data: createdProfile, error: createError } = await supabase
+          .from("users")
+          .upsert(newProfile)
+          .select()
+          .single()
+        
+        if (createError) {
+          setUser(null)
+        } else {
+          setUser(createdProfile || newProfile)
+        }
+      } else if (profileError) {
+        setUser(null)
+      } else if (profile) {
         setUser(profile)
+      } else {
+        setUser(null)
       }
     } catch (error) {
-      console.error("Error loading user:", error)
+      setUser(null)
     } finally {
       setIsLoading(false)
     }
@@ -91,6 +148,9 @@ export function Navbar() {
       const { error } = await supabase.auth.signOut()
       if (error) throw error
 
+      // Explicitly set user to null after sign out
+      setUser(null)
+      
       toast({
         title: "Signed out",
         description: "You have been successfully signed out.",
@@ -208,12 +268,6 @@ export function Navbar() {
                     </div>
                   </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href={`/author/${user.username}`} className="flex items-center">
-                      <User className="mr-2 h-4 w-4" />
-                      Profile
-                    </Link>
-                  </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/dashboard" className="flex items-center">
                       <Settings className="mr-2 h-4 w-4" />

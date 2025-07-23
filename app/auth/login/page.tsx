@@ -13,13 +13,15 @@ import { Separator } from "@/components/ui/separator"
 import { BookOpen, Mail, Lock, Github, Chrome, Eye, EyeOff } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase/client"
-import { AnimatedBackground } from "@/components/ui/animated-background"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
   const router = useRouter()
   const supabase = createClient()
@@ -27,6 +29,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError(null)
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -35,27 +38,36 @@ export default function LoginPage() {
       })
 
       if (error) {
-        console.error("Login error:", error)
-        toast({
-          title: "Login failed",
-          description: error.message,
-          variant: "destructive",
-        })
-      } else {
-        toast({
-          title: "Welcome back!",
-          description: "You have successfully logged in.",
-        })
-        router.push("/")
-        router.refresh()
+        setError(error.message)
+        return
       }
-    } catch (error) {
-      console.error("Unexpected error:", error)
+
+      if (!data.user) {
+        setError("No user found")
+        return
+      }
+
+      // Check if user profile exists in the database
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", data.user.id)
+        .single()
+
+      if (userError || !userData) {
+        setError("User profile not found. Please contact support.")
+        return
+      }
+
       toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again later.",
-        variant: "destructive",
+        title: "Welcome back!",
+        description: "You have successfully logged in.",
       })
+      
+      // Force a hard refresh to ensure all components re-render with the new auth state
+      window.location.href = "/"
+    } catch (error: any) {
+      setError(error?.message || "An unexpected error occurred. Please try again later.")
     } finally {
       setIsLoading(false)
     }
@@ -63,6 +75,7 @@ export default function LoginPage() {
 
   const handleOAuthLogin = async (provider: "google" | "github") => {
     try {
+      setError(null)
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
@@ -71,27 +84,14 @@ export default function LoginPage() {
       })
 
       if (error) {
-        console.error("OAuth error:", error)
-        toast({
-          title: "OAuth Error",
-          description: error.message,
-          variant: "destructive",
-        })
+        setError(error.message)
       }
-    } catch (error) {
-      console.error("Unexpected OAuth error:", error)
-      toast({
-        title: "Error",
-        description: "Failed to initiate OAuth login",
-        variant: "destructive",
-      })
+    } catch (error: any) {
+      setError(error?.message || "Failed to initiate OAuth login")
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-blue-900/20 dark:to-indigo-900/20 flex items-center justify-center p-4 relative">
-      <AnimatedBackground />
-
       <div className="w-full max-w-md relative z-10">
         {/* Logo */}
         <div className="text-center mb-8">
@@ -114,6 +114,14 @@ export default function LoginPage() {
           </CardHeader>
 
           <CardContent className="space-y-6">
+            {/* Error Alert */}
+            {error && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
             {/* OAuth Buttons */}
             <div className="space-y-3">
               <Button
@@ -225,6 +233,5 @@ export default function LoginPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
   )
 }

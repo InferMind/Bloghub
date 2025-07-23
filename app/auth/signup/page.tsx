@@ -11,10 +11,12 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Checkbox } from "@/components/ui/checkbox"
-import { BookOpen, Mail, Lock, User, Github, Chrome, Eye, EyeOff } from "lucide-react"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { BookOpen, Mail, Lock, User, Github, Chrome, Eye, EyeOff, PenTool, BookOpen as BookIcon } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase/client"
-import { AnimatedBackground } from "@/components/ui/animated-background"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -22,11 +24,13 @@ export default function SignupPage() {
     email: "",
     password: "",
     confirmPassword: "",
+    role: "reader", // Default to reader
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [agreeToTerms, setAgreeToTerms] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
   const router = useRouter()
   const supabase = createClient()
@@ -38,69 +42,67 @@ export default function SignupPage() {
     }))
   }
 
+  const handleRoleChange = (value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      role: value,
+    }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
+    setError(null)
+    
     if (formData.password !== formData.confirmPassword) {
-      toast({
-        title: "Password mismatch",
-        description: "Please make sure your passwords match.",
-        variant: "destructive",
-      })
+      setError("Passwords don't match")
       return
     }
 
     if (!agreeToTerms) {
-      toast({
-        title: "Terms required",
-        description: "Please agree to the terms and conditions.",
-        variant: "destructive",
-      })
+      setError("You must agree to the terms and conditions")
       return
     }
 
     setIsLoading(true)
 
     try {
-      // Generate a username from email (before the @ symbol) with a random suffix to avoid conflicts
-      const baseUsername = formData.email.split("@")[0]
-      const randomSuffix = Math.floor(Math.random() * 1000)
-      const username = `${baseUsername}${randomSuffix}`
-
-      const { data, error } = await supabase.auth.signUp({
+      // Basic signup without metadata
+      const { error } = await supabase.auth.signUp({
         email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            full_name: formData.name,
-            username: username,
-            avatar_url: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(formData.name)}`,
-          },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
+        password: formData.password
       })
 
       if (error) {
-        console.error("Signup error:", error)
-        toast({
-          title: "Signup failed",
-          description: error.message,
-          variant: "destructive",
-        })
-      } else {
-        toast({
-          title: "Account created!",
-          description: "Please check your email to verify your account before signing in.",
-        })
-        router.push("/auth/login")
+        setError(error.message)
+        return
       }
-    } catch (error) {
-      console.error("Unexpected error:", error)
+
+      // If signup successful, create user profile separately
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (user) {
+        // Create user profile
+        await supabase.from("users").insert({
+          id: user.id,
+          full_name: formData.name,
+          username: formData.email.split("@")[0] + Math.floor(Math.random() * 1000),
+          is_writer: formData.role === "writer",
+          followers_count: 0,
+          following_count: 0,
+          posts_count: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+      }
+
       toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again later.",
-        variant: "destructive",
+        title: "Account created!",
+        description: "Please check your email to verify your account before signing in.",
       })
+      
+      router.push("/auth/login")
+    } catch (error: any) {
+      setError(error?.message || "An unexpected error occurred")
     } finally {
       setIsLoading(false)
     }
@@ -108,35 +110,19 @@ export default function SignupPage() {
 
   const handleOAuthSignup = async (provider: "google" | "github") => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      setError(null)
+      await supabase.auth.signInWithOAuth({
         provider,
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
         },
       })
-
-      if (error) {
-        console.error("OAuth error:", error)
-        toast({
-          title: "OAuth Error",
-          description: error.message,
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      console.error("Unexpected OAuth error:", error)
-      toast({
-        title: "Error",
-        description: "Failed to initiate OAuth signup",
-        variant: "destructive",
-      })
+    } catch (error: any) {
+      setError(error?.message || "Failed to initiate OAuth signup")
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-blue-900/20 dark:to-indigo-900/20 flex items-center justify-center p-4 relative">
-      <AnimatedBackground />
-
       <div className="w-full max-w-md relative z-10">
         {/* Logo */}
         <div className="text-center mb-8">
@@ -159,6 +145,14 @@ export default function SignupPage() {
           </CardHeader>
 
           <CardContent className="space-y-6">
+            {/* Error Alert */}
+            {error && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
             {/* OAuth Buttons */}
             <div className="space-y-3">
               <Button
@@ -237,7 +231,6 @@ export default function SignupPage() {
                     onChange={handleInputChange}
                     className="pl-10 pr-10 bg-white/70 dark:bg-gray-800/70 border-gray-200 dark:border-gray-700"
                     required
-                    minLength={6}
                   />
                   <Button
                     type="button"
@@ -283,6 +276,31 @@ export default function SignupPage() {
                     )}
                   </Button>
                 </div>
+              </div>
+
+              {/* Account Type Selection */}
+              <div className="space-y-2">
+                <Label>Account Type</Label>
+                <RadioGroup 
+                  value={formData.role} 
+                  onValueChange={handleRoleChange}
+                  className="flex flex-col space-y-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="reader" id="reader" />
+                    <Label htmlFor="reader" className="flex items-center gap-2 cursor-pointer">
+                      <BookIcon className="w-4 h-4 text-blue-500" />
+                      Reader (read and interact with content)
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="writer" id="writer" />
+                    <Label htmlFor="writer" className="flex items-center gap-2 cursor-pointer">
+                      <PenTool className="w-4 h-4 text-purple-500" />
+                      Writer (create and publish content)
+                    </Label>
+                  </div>
+                </RadioGroup>
               </div>
 
               <div className="flex items-center space-x-2">
@@ -332,6 +350,5 @@ export default function SignupPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
   )
 }
