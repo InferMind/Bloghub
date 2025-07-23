@@ -100,7 +100,8 @@ export default function SignupPage() {
         description: "Please check your email to verify your account before signing in.",
       })
       
-      router.push("/auth/login")
+      router.push("/profile")
+      router.refresh()
     } catch (error: any) {
       setError(error?.message || "An unexpected error occurred")
     } finally {

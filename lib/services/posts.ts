@@ -1,7 +1,7 @@
+"use client"
+
 import { createClient } from "@/lib/supabase/client"
 import type { Post } from "@/lib/types/database"
-
-const supabase = createClient()
 
 export async function getPosts(
   options: {
@@ -13,6 +13,7 @@ export async function getPosts(
     search?: string
   } = {},
 ) {
+  const supabase = createClient()
   let query = supabase
     .from("posts")
     .select(`
@@ -54,6 +55,7 @@ export async function getPosts(
 }
 
 export async function getPost(slug: string, authorUsername: string) {
+  const supabase = createClient()
   const { data, error } = await supabase
     .from("posts")
     .select(`
@@ -71,6 +73,7 @@ export async function getPost(slug: string, authorUsername: string) {
 }
 
 export async function createPost(post: Partial<Post>) {
+  const supabase = createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -93,6 +96,7 @@ export async function createPost(post: Partial<Post>) {
 }
 
 export async function updatePost(id: string, updates: Partial<Post>) {
+  const supabase = createClient()
   // Check if the post is being published for the first time
   let publishedAt = undefined;
   if (updates.is_published) {
@@ -124,12 +128,14 @@ export async function updatePost(id: string, updates: Partial<Post>) {
 }
 
 export async function deletePost(id: string) {
+  const supabase = createClient()
   const { error } = await supabase.from("posts").delete().eq("id", id)
 
   if (error) throw error
 }
 
 export async function likePost(postId: string) {
+  const supabase = createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -141,6 +147,7 @@ export async function likePost(postId: string) {
 }
 
 export async function unlikePost(postId: string) {
+  const supabase = createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -152,6 +159,7 @@ export async function unlikePost(postId: string) {
 }
 
 export async function bookmarkPost(postId: string) {
+  const supabase = createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -163,6 +171,7 @@ export async function bookmarkPost(postId: string) {
 }
 
 export async function unbookmarkPost(postId: string) {
+  const supabase = createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()

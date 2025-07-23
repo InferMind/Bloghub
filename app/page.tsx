@@ -1,16 +1,22 @@
-import { HeroSection } from "@/components/home/hero-section"
-import { TrendingBlogs } from "@/components/home/trending-blogs"
-import { RecentBlogs } from "@/components/home/recent-blogs"
-import { Categories } from "@/components/home/categories"
-import { FeaturedAuthors } from "@/components/home/featured-authors"
-import { Newsletter } from "@/components/home/newsletter"
-import { AnimatedBackground } from "@/components/ui/animated-background"
+import dynamic from 'next/dynamic'
+import { Suspense } from 'react'
 import { 
   getTrendingPosts, 
   getRecentPosts, 
   getCategories, 
   getFeaturedAuthors 
 } from "@/lib/services/home"
+
+// Static import for critical above-the-fold content
+import { HeroSection } from "@/components/home/hero-section"
+import { AnimatedBackground } from "@/components/ui/animated-background"
+
+// Dynamic imports for below-the-fold content
+const TrendingBlogs = dynamic(() => import("@/components/home/trending-blogs").then(mod => ({ default: mod.TrendingBlogs })), { ssr: true })
+const RecentBlogs = dynamic(() => import("@/components/home/recent-blogs").then(mod => ({ default: mod.RecentBlogs })), { ssr: true })
+const Categories = dynamic(() => import("@/components/home/categories").then(mod => ({ default: mod.Categories })), { ssr: true })
+const FeaturedAuthors = dynamic(() => import("@/components/home/featured-authors").then(mod => ({ default: mod.FeaturedAuthors })), { ssr: true })
+const Newsletter = dynamic(() => import("@/components/home/newsletter").then(mod => ({ default: mod.Newsletter })), { ssr: false })
 
 export default async function HomePage() {
   // Fetch data for the home page
@@ -25,11 +31,25 @@ export default async function HomePage() {
       <main className="relative z-10">
         <HeroSection />
         <div className="container mx-auto px-4 py-16 space-y-24">
-          <TrendingBlogs posts={trendingPosts} />
-          <RecentBlogs posts={recentPosts} />
-          <Categories categories={categories} />
-          <FeaturedAuthors authors={featuredAuthors} />
-          <Newsletter />
+          <Suspense fallback={<div className="h-64 w-full bg-gray-100 dark:bg-gray-800 animate-pulse rounded-lg"></div>}>
+            <TrendingBlogs posts={trendingPosts} />
+          </Suspense>
+          
+          <Suspense fallback={<div className="h-96 w-full bg-gray-100 dark:bg-gray-800 animate-pulse rounded-lg"></div>}>
+            <RecentBlogs posts={recentPosts} />
+          </Suspense>
+          
+          <Suspense fallback={<div className="h-48 w-full bg-gray-100 dark:bg-gray-800 animate-pulse rounded-lg"></div>}>
+            <Categories categories={categories} />
+          </Suspense>
+          
+          <Suspense fallback={<div className="h-64 w-full bg-gray-100 dark:bg-gray-800 animate-pulse rounded-lg"></div>}>
+            <FeaturedAuthors authors={featuredAuthors} />
+          </Suspense>
+          
+          <Suspense fallback={<div className="h-48 w-full bg-gray-100 dark:bg-gray-800 animate-pulse rounded-lg"></div>}>
+            <Newsletter />
+          </Suspense>
         </div>
       </main>
     </div>

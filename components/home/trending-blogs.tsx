@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import Image from "next/image"
+import { LazyImage } from "@/components/lazy-image"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -41,12 +41,13 @@ export function TrendingBlogs({ posts }: TrendingBlogsProps) {
           {posts.map((post, index) => (
             <Card key={post.id} className="group glass-card hover-lift overflow-hidden border-0">
               <div className="relative">
-                <Image
-                  src={post.cover_image_url || "/placeholder.svg?height=200&width=400"}
+                <LazyImage
+                  src={post.cover_image_url || "/placeholder.svg"}
                   alt={post.title}
                   width={500}
                   height={300}
                   className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
+                  priority={index < 3}
                 />
                 <div className="absolute top-4 left-4">
                   <Badge className="bg-orange-500 hover:bg-orange-600 text-white">#{index + 1} Trending</Badge>

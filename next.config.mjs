@@ -17,8 +17,18 @@ const nextConfig = {
       'randomuser.me',
       'picsum.photos',
       'cloudflare-ipfs.com',
+      'exngdjemlvsijdwttiwr.supabase.co',
     ],
-    unoptimized: true,
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 60,
+  },
+  swcMinify: true,
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
+  experimental: {
+    optimizeCss: true,
+    optimizePackageImports: ['lucide-react'],
   },
 }
 

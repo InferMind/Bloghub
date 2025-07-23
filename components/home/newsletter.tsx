@@ -80,6 +80,7 @@ export function Newsletter() {
                     onChange={(e) => setEmail(e.target.value)}
                     className="flex-1 glass border-white/20 focus:border-blue-400"
                     required
+                    suppressHydrationWarning
                   />
                   <Button
                     type="submit"

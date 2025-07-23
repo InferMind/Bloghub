@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator"
 import { BookOpen, Mail, Lock, Github, Chrome, Eye, EyeOff } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase/client"
+import { signIn } from "@/lib/actions/auth"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 
@@ -64,8 +65,9 @@ export default function LoginPage() {
         description: "You have successfully logged in.",
       })
       
-      // Force a hard refresh to ensure all components re-render with the new auth state
-      window.location.href = "/"
+      // Redirect to profile page after login
+      router.push("/profile")
+      router.refresh()
     } catch (error: any) {
       setError(error?.message || "An unexpected error occurred. Please try again later.")
     } finally {
@@ -152,13 +154,14 @@ export default function LoginPage() {
             </div>
 
             {/* Login Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form action={signIn} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
                     id="email"
+                    name="email"
                     type="email"
                     placeholder="Enter your email"
                     value={email}
@@ -183,6 +186,7 @@ export default function LoginPage() {
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
                     id="password"
+                    name="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
                     value={password}

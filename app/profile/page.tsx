@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense, lazy } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,6 +18,10 @@ import { User, Mail, Globe, Twitter, Github, Linkedin, Camera, Save, Settings } 
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase/client"
 import { AnimatedBackground } from "@/components/ui/animated-background"
+import { ProfileSkeleton } from "@/components/profile/profile-skeleton"
+import { OptimizedAvatar } from "@/components/profile/optimized-avatar"
+import { getFromStorage, setInStorage } from "@/lib/utils/local-storage"
+import { uploadAvatar } from "@/lib/utils/avatar-upload"
 import type { User as UserType } from "@/lib/types/database"
 
 export default function ProfilePage() {
@@ -39,10 +43,46 @@ export default function ProfilePage() {
   const supabase = createClient()
 
   useEffect(() => {
-    loadUserProfile()
+    // Add a small delay to allow the UI to render first
+    const timer = setTimeout(() => {
+      loadUserProfile()
+    }, 100)
+    
+    return () => clearTimeout(timer)
   }, [])
 
   const loadUserProfile = async () => {
+    // Try to get user from local storage first
+    const cachedUser = getFromStorage<UserType>('user_profile');
+    if (cachedUser) {
+      setUser(cachedUser);
+      setFormData({
+        full_name: cachedUser.full_name || "",
+        username: cachedUser.username || "",
+        bio: cachedUser.bio || "",
+        website_url: cachedUser.website_url || "",
+        twitter_handle: cachedUser.twitter_handle || "",
+        github_handle: cachedUser.github_handle || "",
+        linkedin_handle: cachedUser.linkedin_handle || "",
+        is_writer: cachedUser.is_writer || false,
+      });
+      setIsLoading(false);
+      
+      // Still fetch in background to update cache
+      setTimeout(() => fetchUserProfile(), 100);
+      return;
+    }
+    
+    // Use a cached version if available
+    if (user) {
+      setIsLoading(false)
+      return
+    }
+    
+    await fetchUserProfile();
+  }
+  
+  const fetchUserProfile = async () => {
     try {
       const {
         data: { user: authUser },
@@ -100,6 +140,9 @@ export default function ProfilePage() {
         linkedin_handle: profile.linkedin_handle || "",
         is_writer: profile.is_writer || false,
       })
+      
+      // Cache the user profile in local storage (expires in 1 hour)
+      setInStorage('user_profile', profile, 60 * 60 * 1000)
     } catch (error) {
       console.error("Error loading profile:", error)
       toast({
@@ -128,6 +171,24 @@ export default function ProfilePage() {
   }
 
   const handleSave = async () => {
+    // Validate form data before saving
+    if (!formData.full_name || !formData.username) {
+      toast({
+        title: "Validation Error",
+        description: "Name and username are required fields",
+        variant: "destructive",
+      })
+      return
+    }
+    // Validate form data before saving
+    if (!formData.full_name || !formData.username) {
+      toast({
+        title: "Validation Error",
+        description: "Name and username are required fields",
+        variant: "destructive",
+      })
+      return
+    }
     if (!user) return
 
     setIsSaving(true)
@@ -161,23 +222,41 @@ export default function ProfilePage() {
   }
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Show loading toast
+    const toastId = toast({
+      title: "Uploading avatar...",
+      description: "Please wait while we upload your image",
+    })
     const file = e.target.files?.[0]
     if (!file || !user) return
+    
+    // Validate file size
+    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      toast({
+        title: "File too large",
+        description: "Avatar image must be less than 5MB",
+        variant: "destructive",
+      })
+      return
+    }
+    
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload an image file",
+        variant: "destructive",
+      })
+      return
+    }
 
     try {
-      const fileExt = file.name.split(".").pop()
-      const fileName = `${user.id}.${fileExt}`
-      const filePath = `avatars/${fileName}`
-
-      const { error: uploadError } = await supabase.storage.from("avatars").upload(filePath, file, { upsert: true })
-
-      if (uploadError) throw uploadError
-
-      const { data } = supabase.storage.from("avatars").getPublicUrl(filePath)
+      // Upload the avatar using the utility function
+      const publicUrl = await uploadAvatar(file, user.id)
 
       const { error: updateError } = await supabase
         .from("users")
-        .update({ avatar_url: data.publicUrl })
+        .update({ avatar_url: publicUrl })
         .eq("id", user.id)
 
       if (updateError) throw updateError
@@ -199,11 +278,7 @@ export default function ProfilePage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-blue-900/20 dark:to-indigo-900/20 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
-      </div>
-    )
+    return <ProfileSkeleton />
   }
 
   return (
@@ -235,10 +310,11 @@ export default function ProfilePage() {
                     {/* Avatar Section */}
                     <div className="flex items-center gap-6">
                       <div className="relative">
-                        <Avatar className="w-24 h-24 ring-4 ring-white/20">
-                          <AvatarImage src={user?.avatar_url || "/placeholder.svg"} alt={user?.full_name} />
-                          <AvatarFallback className="text-2xl">{user?.full_name?.charAt(0) || "U"}</AvatarFallback>
-                        </Avatar>
+                        <OptimizedAvatar 
+                          src={user?.avatar_url} 
+                          alt={user?.full_name} 
+                          fallback={user?.full_name?.charAt(0) || "U"} 
+                        />
                         <label className="absolute bottom-0 right-0 p-2 bg-blue-500 rounded-full cursor-pointer hover:bg-blue-600 transition-colors">
                           <Camera className="w-4 h-4 text-white" />
                           <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />

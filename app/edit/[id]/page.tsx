@@ -83,7 +83,7 @@ export default function EditPostPage() {
             description: "The post you're trying to edit doesn't exist.",
             variant: "destructive",
           })
-          router.push("/dashboard")
+          router.push("/profile")
           return
         }
 
@@ -98,7 +98,7 @@ export default function EditPostPage() {
             description: "You don't have permission to edit this post.",
             variant: "destructive",
           })
-          router.push("/dashboard")
+          router.push("/profile")
           return
         }
 
@@ -240,9 +240,9 @@ export default function EditPostPage() {
           : "Your blog post has been updated successfully.",
       })
 
-      // Redirect to the post or dashboard
+      // Redirect to the post or profile
       if (saveAsDraft) {
-        router.push("/dashboard")
+        router.push("/profile")
       } else {
         router.push(`/blog/${post.author.username}/${slug}`)
       }

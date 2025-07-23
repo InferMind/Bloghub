@@ -19,6 +19,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase/client"
+import { signOut } from "@/lib/actions/auth"
 import type { User as UserType } from "@/lib/types/database"
 
 export function Navbar() {
@@ -61,17 +62,7 @@ export function Navbar() {
 
   const loadUser = async () => {
     try {
-      // First check if we have a session
-      const { data: sessionData } = await supabase.auth.getSession()
-      
-      // If no session, user is not logged in
-      if (!sessionData.session) {
-        setUser(null)
-        setIsLoading(false)
-        return
-      }
-      
-      // Now we can safely get the user
+      // Get authenticated user data directly
       const { data: userData, error: authError } = await supabase.auth.getUser()
       
       if (authError || !userData.user) {
@@ -157,6 +148,7 @@ export function Navbar() {
       })
 
       router.push("/")
+      router.refresh()
       router.refresh()
     } catch (error) {
       toast({
@@ -269,9 +261,9 @@ export function Navbar() {
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href="/dashboard" className="flex items-center">
+                    <Link href="/" className="flex items-center">
                       <Settings className="mr-2 h-4 w-4" />
-                      Dashboard
+                      Home
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
@@ -281,9 +273,13 @@ export function Navbar() {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Sign out
+                  <DropdownMenuItem asChild>
+                    <form action={signOut} className="w-full">
+                      <button type="submit" className="flex items-center w-full text-left">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Sign out
+                      </button>
+                    </form>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -360,13 +356,15 @@ export function Navbar() {
                   </Button>
                 )}
                 <Button asChild variant="outline" className="w-full bg-transparent">
-                  <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>
-                    Dashboard
+                  <Link href="/" onClick={() => setIsMobileMenuOpen(false)}>
+                    Home
                   </Link>
                 </Button>
-                <Button onClick={handleSignOut} variant="ghost" className="w-full">
-                  Sign Out
-                </Button>
+                <form action={signOut} className="w-full">
+                  <Button type="submit" variant="ghost" className="w-full">
+                    Sign Out
+                  </Button>
+                </form>
               </div>
             ) : (
               <div className="space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
