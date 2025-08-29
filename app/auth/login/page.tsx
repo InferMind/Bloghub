@@ -1,83 +1,48 @@
 "use client"
 
 import type React from "react"
-
+import { useFormState, useFormStatus } from "react-dom"
 import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { BookOpen, Mail, Lock, Github, Chrome, Eye, EyeOff } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase/client"
 import { signIn } from "@/lib/actions/auth"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 
+function SubmitButton() {
+  const { pending } = useFormStatus()
+
+  return (
+    <Button
+      type="submit"
+      className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+      disabled={pending}
+    >
+      {pending ? (
+        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+      ) : (
+        "Sign In"
+      )}
+    </Button>
+  )
+}
+
+
 export default function LoginPage() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+  const [state, formAction] = useFormState(signIn, { error: null })
   const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const { toast } = useToast()
-  const router = useRouter()
+  const [oAuthError, setOAuthError] = useState<string | null>(null)
   const supabase = createClient()
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-
-      if (error) {
-        setError(error.message)
-        return
-      }
-
-      if (!data.user) {
-        setError("No user found")
-        return
-      }
-
-      // Check if user profile exists in the database
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", data.user.id)
-        .single()
-
-      if (userError || !userData) {
-        setError("User profile not found. Please contact support.")
-        return
-      }
-
-      toast({
-        title: "Welcome back!",
-        description: "You have successfully logged in.",
-      })
-      
-      // Redirect to profile page after login
-      router.push("/profile")
-      router.refresh()
-    } catch (error: any) {
-      setError(error?.message || "An unexpected error occurred. Please try again later.")
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   const handleOAuthLogin = async (provider: "google" | "github") => {
     try {
-      setError(null)
+      setOAuthError(null)
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
@@ -86,10 +51,10 @@ export default function LoginPage() {
       })
 
       if (error) {
-        setError(error.message)
+        setOAuthError(error.message)
       }
     } catch (error: any) {
-      setError(error?.message || "Failed to initiate OAuth login")
+      setOAuthError(error?.message || "Failed to initiate OAuth login")
     }
   }
 
@@ -117,10 +82,10 @@ export default function LoginPage() {
 
           <CardContent className="space-y-6">
             {/* Error Alert */}
-            {error && (
+            {(state?.error || oAuthError) && (
               <Alert variant="destructive" className="mb-4">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>{state?.error || oAuthError}</AlertDescription>
               </Alert>
             )}
             
@@ -154,7 +119,7 @@ export default function LoginPage() {
             </div>
 
             {/* Login Form */}
-            <form action={signIn} className="space-y-4">
+            <form action={formAction} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
@@ -164,8 +129,6 @@ export default function LoginPage() {
                     name="email"
                     type="email"
                     placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
                     className="pl-10 bg-white/70 dark:bg-gray-800/70 border-gray-200 dark:border-gray-700"
                     required
                   />
@@ -189,8 +152,6 @@ export default function LoginPage() {
                     name="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
                     className="pl-10 pr-10 bg-white/70 dark:bg-gray-800/70 border-gray-200 dark:border-gray-700"
                     required
                   />
@@ -210,17 +171,7 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <Button
-                type="submit"
-                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  "Sign In"
-                )}
-              </Button>
+              <SubmitButton />
             </form>
 
             <div className="text-center">

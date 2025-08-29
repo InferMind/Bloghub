@@ -38,9 +38,21 @@ function createActionClient() {
   )
 }
 
-export async function signIn(formData: FormData) {
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
+import { z } from 'zod'
+
+const signInSchema = z.object({
+  email: z.string().email({ message: "Invalid email address" }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
+})
+
+export async function signIn(prevState: any, formData: FormData) {
+  const result = signInSchema.safeParse(Object.fromEntries(formData.entries()))
+
+  if (!result.success) {
+    return { error: result.error.errors.map((e) => e.message).join(', ') }
+  }
+
+  const { email, password } = result.data
   
   const supabase = createActionClient()
   
