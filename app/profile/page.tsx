@@ -103,7 +103,7 @@ export default function ProfilePage() {
 
       const { data: profile, error: profileError } = await supabase
         .from("users")
-        .select("*")
+        .select("id, full_name, username, avatar_url, bio, website_url, twitter_handle, github_handle, linkedin_handle, is_writer, posts_count, followers_count")
         .eq("id", authUser.id)
         .single()
 

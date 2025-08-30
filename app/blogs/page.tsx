@@ -15,6 +15,7 @@ import { Search, Filter, Clock, Heart, MessageCircle, Eye, SortDesc } from "luci
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase/client"
 import { AnimatedBackground } from "@/components/ui/animated-background"
+import { useDebounce } from "@/hooks/use-debounce"
 import type { Post, Category } from "@/lib/types/database"
 
 export default function BlogsPage() {
@@ -22,6 +23,7 @@ export default function BlogsPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+  const debouncedSearch = useDebounce(searchQuery, 300)
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [sortBy, setSortBy] = useState<string>("newest")
   const [currentPage, setCurrentPage] = useState(1)
@@ -37,7 +39,7 @@ export default function BlogsPage() {
 
   useEffect(() => {
     loadPosts(true)
-  }, [searchQuery, selectedCategory, sortBy])
+  }, [debouncedSearch, selectedCategory, sortBy])
 
   const loadCategories = async () => {
     try {
@@ -59,21 +61,21 @@ export default function BlogsPage() {
       let query = supabase
         .from("posts")
         .select(`
-          *,
-          author:users(*),
-          category:categories(*)
+          id, title, slug, excerpt, cover_image_url, reading_time, published_at, created_at,
+          likes_count, comments_count, views_count,
+          author:users(id, full_name, username, avatar_url),
+          category:categories(id, name, slug, color)
         `)
         .eq("is_published", true)
         .range(offset, offset + postsPerPage - 1)
 
       // Apply search filter
-      if (searchQuery) {
-        query = query.or(`title.ilike.%${searchQuery}%,content.ilike.%${searchQuery}%,excerpt.ilike.%${searchQuery}%`)
+      if (debouncedSearch) {
+        query = query.or(`title.ilike.%${debouncedSearch}%,content.ilike.%${debouncedSearch}%,excerpt.ilike.%${debouncedSearch}%`)
       }
 
       // Apply category filter
       if (selectedCategory !== "all") {
-        // First get the category ID
         const { data: categoryData } = await supabase
           .from("categories")
           .select("id")

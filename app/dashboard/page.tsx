@@ -59,7 +59,11 @@ export default function DashboardPage() {
       }
 
       // Load user profile
-      const { data: profile } = await supabase.from("users").select("*").eq("id", authUser.id).single()
+      const { data: profile } = await supabase
+        .from("users")
+        .select("id, full_name, username, avatar_url, is_writer, followers_count, posts_count, bio")
+        .eq("id", authUser.id)
+        .single()
 
       if (profile) {
         setUser(profile)
@@ -70,8 +74,9 @@ export default function DashboardPage() {
         const { data: userPosts } = await supabase
           .from("posts")
           .select(`
-            *,
-            category:categories(*)
+            id, title, slug, excerpt, cover_image_url, created_at, updated_at, is_published,
+            views_count, likes_count, comments_count, bookmarks_count,
+            category:categories(id, name, slug, color)
           `)
           .eq("author_id", authUser.id)
           .order("created_at", { ascending: false })
@@ -98,9 +103,10 @@ export default function DashboardPage() {
           .from("bookmarks")
           .select(`
             post:posts(
-              *,
-              author:users(*),
-              category:categories(*)
+              id, title, slug, excerpt, cover_image_url, created_at,
+              views_count, likes_count, comments_count,
+              author:users(id, full_name, username, avatar_url),
+              category:categories(id, name, slug, color)
             )
           `)
           .eq("user_id", authUser.id)
@@ -115,7 +121,7 @@ export default function DashboardPage() {
         const { data: followingData } = await supabase
           .from("follows")
           .select(`
-            following:users!following_id(*)
+            following:users!following_id(id, full_name, username, avatar_url, followers_count, posts_count, is_writer, bio)
           `)
           .eq("follower_id", authUser.id)
           .order("created_at", { ascending: false })

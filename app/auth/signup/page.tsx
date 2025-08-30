@@ -66,10 +66,17 @@ export default function SignupPage() {
     setIsLoading(true)
 
     try {
-      // Basic signup without metadata
-      const { error } = await supabase.auth.signUp({
+      // Signup with email redirect to complete email verification
+      const { data: signUpData, error } = await supabase.auth.signUp({
         email: formData.email,
-        password: formData.password
+        password: formData.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: {
+            full_name: formData.name,
+            role: formData.role,
+          },
+        },
       })
 
       if (error) {
@@ -77,30 +84,13 @@ export default function SignupPage() {
         return
       }
 
-      // If signup successful, create user profile separately
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (user) {
-        // Create user profile
-        await supabase.from("users").insert({
-          id: user.id,
-          full_name: formData.name,
-          username: formData.email.split("@")[0] + Math.floor(Math.random() * 1000),
-          is_writer: formData.role === "writer",
-          followers_count: 0,
-          following_count: 0,
-          posts_count: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-      }
-
+      // Do not create profile until email is verified and session exists (done in /auth/callback)
       toast({
         title: "Account created!",
         description: "Please check your email to verify your account before signing in.",
       })
       
-      router.push("/profile")
+      router.push("/auth/login")
       router.refresh()
     } catch (error: any) {
       setError(error?.message || "An unexpected error occurred")

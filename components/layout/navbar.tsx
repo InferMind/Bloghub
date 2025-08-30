@@ -136,26 +136,16 @@ export function Navbar() {
 
   const handleSignOut = async () => {
     try {
+      // Use client sign out and then hard redirect to clear state fully
       const { error } = await supabase.auth.signOut()
       if (error) throw error
 
-      // Explicitly set user to null after sign out
       setUser(null)
-      
-      toast({
-        title: "Signed out",
-        description: "You have been successfully signed out.",
-      })
-
-      router.push("/")
-      router.refresh()
-      router.refresh()
+      toast({ title: "Signed out", description: "You have been successfully signed out." })
+      // Hard reload to ensure all server-side auth contexts/middleware are reset
+      window.location.href = "/"
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to sign out",
-        variant: "destructive",
-      })
+      toast({ title: "Error", description: "Failed to sign out", variant: "destructive" })
     }
   }
 
@@ -273,13 +263,11 @@ export function Navbar() {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <form action={signOut} className="w-full">
-                      <button type="submit" className="flex items-center w-full text-left">
-                        <LogOut className="mr-2 h-4 w-4" />
-                        Sign out
-                      </button>
-                    </form>
+                  <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleSignOut(); }}>
+                    <div className="flex items-center">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Sign out
+                    </div>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -360,11 +348,9 @@ export function Navbar() {
                     Home
                   </Link>
                 </Button>
-                <form action={signOut} className="w-full">
-                  <Button type="submit" variant="ghost" className="w-full">
-                    Sign Out
-                  </Button>
-                </form>
+                <Button onClick={handleSignOut} variant="ghost" className="w-full">
+                  Sign Out
+                </Button>
               </div>
             ) : (
               <div className="space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">

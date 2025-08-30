@@ -18,12 +18,16 @@ const Categories = dynamic(() => import("@/components/home/categories").then(mod
 const FeaturedAuthors = dynamic(() => import("@/components/home/featured-authors").then(mod => ({ default: mod.FeaturedAuthors })), { ssr: true })
 const Newsletter = dynamic(() => import("@/components/home/newsletter").then(mod => ({ default: mod.Newsletter })), { ssr: false })
 
+export const revalidate = 60
+
 export default async function HomePage() {
-  // Fetch data for the home page
-  const trendingPosts = await getTrendingPosts()
-  const recentPosts = await getRecentPosts()
-  const categories = await getCategories()
-  const featuredAuthors = await getFeaturedAuthors()
+  // Fetch data in parallel for faster TTFB
+  const [trendingPosts, recentPosts, categories, featuredAuthors] = await Promise.all([
+    getTrendingPosts(),
+    getRecentPosts(),
+    getCategories(),
+    getFeaturedAuthors(),
+  ])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-blue-900/20 dark:to-indigo-900/20 relative">

@@ -48,16 +48,51 @@ export default function LoginPage() {
         return
       }
 
-      // Check if user profile exists in the database
+      // Ensure user profile exists; create if missing
       const { data: userData, error: userError } = await supabase
         .from("users")
-        .select("*")
+        .select("id")
         .eq("id", data.user.id)
         .single()
 
       if (userError || !userData) {
-        setError("User profile not found. Please contact support.")
-        return
+        const email = data.user.email || ""
+        const meta = data.user.user_metadata || {}
+        const nameFromMeta = (meta.full_name as string) || ""
+        const baseFromEmail = email.split('@')[0] || "user"
+        const clean = (str: string) => str.toLowerCase().replace(/\s+/g, "").replace(/[^a-z0-9_]/g, "")
+        const base = clean(nameFromMeta) || clean(baseFromEmail) || `user_${Date.now().toString().slice(-6)}`
+        
+        let username = base || `user_${Date.now().toString().slice(-6)}`
+        
+        // Try up to 3 attempts to ensure a unique username
+        for (let i = 0; i < 3; i++) {
+          const { data: existing } = await supabase
+            .from("users")
+            .select("id")
+            .eq("username", username)
+            .single()
+          if (!existing) break
+          username = `${base}_${Math.floor(Math.random() * 10000)}`
+        }
+        
+        const { error: createError } = await supabase.from("users").insert({
+          id: data.user.id,
+          full_name: nameFromMeta || baseFromEmail || "User",
+          username,
+          avatar_url: (meta.avatar_url as string) || "",
+          is_writer: false,
+          followers_count: 0,
+          following_count: 0,
+          posts_count: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        
+        if (createError) {
+          setError("Failed to set up your profile. Please try again.")
+          return
+        }
       }
 
       toast({
@@ -154,7 +189,7 @@ export default function LoginPage() {
             </div>
 
             {/* Login Form */}
-            <form action={signIn} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">

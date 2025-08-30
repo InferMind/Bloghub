@@ -19,9 +19,10 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
   const { data: post } = await supabase
     .from("posts")
     .select(`
-      *,
-      author:users(*),
-      category:categories(*)
+      id, title, slug, content, excerpt, cover_image_url, reading_time, published_at, created_at,
+      likes_count, comments_count, views_count,
+      author:users(id, full_name, username, avatar_url),
+      category:categories(id, name, slug, color)
     `)
     .eq("slug", slug)
     .eq("author.username", username)
@@ -62,9 +63,10 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const { data: post, error } = await supabase
     .from("posts")
     .select(`
-      *,
-      author:users(*),
-      category:categories(*)
+      id, title, slug, content, excerpt, cover_image_url, reading_time, published_at, created_at,
+      likes_count, comments_count, views_count,
+      author:users(id, full_name, username, avatar_url),
+      category:categories(id, name, slug, color)
     `)
     .eq("slug", slug)
     .eq("author.username", username)
@@ -75,11 +77,13 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     notFound()
   }
 
-  // Increment view count
-  await supabase
+  // Increment view count (non-blocking)
+  supabase
     .from("posts")
     .update({ views_count: post.views_count + 1 })
     .eq("id", post.id)
+    .then(() => {})
+    .catch(() => {})
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-blue-900/20 dark:to-indigo-900/20">

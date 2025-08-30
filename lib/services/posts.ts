@@ -17,9 +17,10 @@ export async function getPosts(
   let query = supabase
     .from("posts")
     .select(`
-      *,
-      author:users(*),
-      category:categories(*)
+      id, title, slug, excerpt, cover_image_url, reading_time, published_at, created_at,
+      likes_count, comments_count, views_count,
+      author:users(id, full_name, username, avatar_url),
+      category:categories(id, name, slug, color)
     `)
     .eq("is_published", true)
     .order("created_at", { ascending: false })
@@ -59,9 +60,10 @@ export async function getPost(slug: string, authorUsername: string) {
   const { data, error } = await supabase
     .from("posts")
     .select(`
-      *,
-      author:users(*),
-      category:categories(*)
+      id, title, slug, content, excerpt, cover_image_url, reading_time, published_at, created_at,
+      likes_count, comments_count, views_count,
+      author:users(id, full_name, username, avatar_url),
+      category:categories(id, name, slug, color)
     `)
     .eq("slug", slug)
     .eq("author.username", authorUsername)

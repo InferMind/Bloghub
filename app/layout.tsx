@@ -24,7 +24,9 @@ export const metadata: Metadata = {
     title: "BlogCraft - Modern Blog Platform",
     description: "A beautiful, modern blog platform for writers and readers",
     type: "website",
+    url: process.env.NEXT_PUBLIC_SITE_URL,
   },
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
   generator: 'v0.dev',
   other: {
     'apple-mobile-web-app-capable': 'yes',

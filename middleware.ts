@@ -51,7 +51,7 @@ export async function middleware(request: NextRequest) {
 
     // Redirect authenticated users away from auth pages
     if (request.nextUrl.pathname.startsWith("/auth") && user) {
-      return NextResponse.redirect(new URL("/dashboard", request.url))
+      return NextResponse.redirect(new URL("/profile", request.url))
     }
   } catch (error) {
     console.error("Middleware auth error:", error)

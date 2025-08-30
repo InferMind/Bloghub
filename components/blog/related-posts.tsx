@@ -30,12 +30,11 @@ export function RelatedPosts({ currentPostId, categoryId, tags }: RelatedPostsPr
       let posts: Post[] = []
 
       if (categoryId) {
+        // getPosts expects category slug, but we have categoryId. To avoid extra query, we filter client-side after a broader fetch.
         posts = await getPosts({
-          limit: 6,
-          category: categoryId,
+          limit: 8,
         })
-        // Filter out current post
-        posts = posts.filter((post) => post.id !== currentPostId)
+        posts = posts.filter((post) => post.category?.id === categoryId && post.id !== currentPostId)
       }
 
       // If we don't have enough posts, get more from other categories

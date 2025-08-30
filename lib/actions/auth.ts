@@ -44,13 +44,54 @@ export async function signIn(formData: FormData) {
   
   const supabase = createActionClient()
   
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   })
   
   if (error) {
     return { error: error.message }
+  }
+
+  if (data.user) {
+    // Ensure profile exists
+    const { data: userProfile } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', data.user.id)
+      .single()
+
+    if (!userProfile) {
+      const meta = data.user.user_metadata || {}
+      const nameFromMeta = (meta.full_name as string) || ''
+      const baseFromEmail = (data.user.email || '').split('@')[0] || 'user'
+      const clean = (str: string) => str.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9_]/g, '')
+      const base = clean(nameFromMeta) || clean(baseFromEmail) || `user_${Date.now().toString().slice(-6)}`
+
+      let username = base || `user_${Date.now().toString().slice(-6)}`
+      for (let i = 0; i < 3; i++) {
+        const { data: existing } = await supabase
+          .from('users')
+          .select('id')
+          .eq('username', username)
+          .single()
+        if (!existing) break
+        username = `${base}_${Math.floor(Math.random() * 10000)}`
+      }
+
+      await supabase.from('users').insert({
+        id: data.user.id,
+        full_name: nameFromMeta || baseFromEmail || 'User',
+        username,
+        avatar_url: (meta.avatar_url as string) || '',
+        is_writer: false,
+        followers_count: 0,
+        following_count: 0,
+        posts_count: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+    }
   }
   
   redirect('/profile')

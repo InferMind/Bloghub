@@ -44,10 +44,10 @@ export function markdownToHtml(markdown: string): string {
     .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
     // Italic
     .replace(/\*(.*?)\*/g, "<em>$1</em>")
-    // Links
-    .replace(/\[(.*?)\]$$(.*?)$$/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
-    // Images
-    .replace(/!\[(.*?)\]$$(.*?)$$/g, '<img src="$2" alt="$1" class="max-w-full h-auto my-4 rounded-md">')
+    // Links [text](url)
+    .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+    // Images ![alt](url)
+    .replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" class="max-w-full h-auto my-4 rounded-md">')
     // Lists
     .replace(/^\s*- (.*$)/gm, "<li>$1</li>")
     .replace(/^\s*\d+\. (.*$)/gm, "<li>$1</li>")
